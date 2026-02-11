@@ -4,7 +4,7 @@ Display city aerial distances in rings around a configurable center.
 ## Features
 - Single html file - just open in browser of choice.
 - Based on leaflet world map & features.
-- Preconfigured with cities in israel based on 2024 gov data, approximated to latitude/longitude coords (WGS84), categorised as major / medium / small by pop (30k / 100k).
+- Preconfigured with cities in israel based on 2024 gov data, approximated to latitude/longitude coords (ITM -> WGS84, thanks to Zvika Ben-Haim's website), categorised as major / medium / small by pop (30k / 100k).
 Data about cities with >10k pop seems to be freely available on the world cities database.
 - Every city name is displayed and coloured according to the innermost ring it is within (or black if outside all rings).
 - Cities can be filtered by population number, ring sizes can be adjusted both in colour and radius.
