@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radius Range Visualizer - Israel</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a2e;
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+		/* Left Panel: Exactly 20% Width, 100% Height */
+		.control-panel {
+			position: absolute;
+			top: 0;
+			left: 0;
+			z-index: 1000;
+			background: rgba(255, 255, 255, 0.95);
+			
+			width: 20vw;   /* 10% of Viewport Width */
+			height: 100vh; /* 100% of Viewport Height */
+			
+			padding: 5px;  /* Minimal padding to maximize space */
+			margin: 0;
+			border-radius: 0;
+			box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+			overflow-y: auto;
+			overflow-x: hidden; /* Prevent horizontal scroll inside 10% strip */
+		}
+        
+        .panel-title {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .panel-title i {
+            color: #3498db;
+        }
+        
+        .range-section {
+            margin-bottom: 25px;
+        }
+        
+        .range-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .range-title h3 {
+            color: #2c3e50;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .range-controls {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .range-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s;
+        }
+        
+        .range-item:hover {
+            transform: translateX(5px);
+            background: #edf2f7;
+        }
+        
+        .range-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .range-name {
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+		/* Ensure internal elements try to fit the tiny width */
+		.range-slider-container, 
+		.action-btn, 
+		.range-item {
+			width: 100%;
+			font-size: 10px; /* Force tiny text to help it fit */
+		}
+        
+		.range-slider {
+			width: 100%;
+		}
+        
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid currentColor;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .range-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: 600;
+            color: #2c3e50;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 2px solid #dfe6e9;
+        }
+        
+        .color-picker {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch {
+            border: 2px solid white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .action-buttons {
+            display: grid;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        
+        .action-btn {
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        
+        #updateCircles {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        #updateCircles:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        #resetAll {
+            background: #f8f9fa;
+            color: #2c3e50;
+            border: 2px solid #dfe6e9;
+        }
+        
+        #resetAll:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .info-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f1f8ff;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .info-box p {
+            color: #4a5568;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .info-box i {
+            color: #3498db;
+            margin-top: 2px;
+        }
+        
+        .city-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-shadow: 1px 1px 2px white;
+            color: #2c3e50;
+        }
+        
+		/* Bottom Right Panel: Exactly 10% Width, 50% Height */
+		.stats-panel {
+			position: absolute;
+			bottom: 0;
+			right: 0;
+			z-index: 1000;
+			background: rgba(255, 255, 255, 0.95);
+			
+			width: 20vw;  /* 20% of Viewport Width */
+			height: 50vh; /* 50% of Viewport Height */
+			
+			padding: 5px;
+			margin: 0;
+			border-radius: 0;
+			box-shadow: -2px -2px 10px rgba(0, 0, 0, 0.3);
+			overflow-y: auto;
+			overflow-x: hidden;
+		}
+        
+        .stats-title {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .stats-grid {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .range-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .city-marker {
+            background: #e74c3c;
+            border-radius: 50%;
+            width: 8px;
+            height: 8px;
+            position: absolute;
+            transform: translate(-50%, -50%);
+        }
+        
+        .city-marker.major {
+            width: 12px;
+            height: 12px;
+            background: #c0392b;
+        }
+        
+        /* Concentric circles styling */
+        .circle-fill-0 { fill-opacity: 0.15 !important; }
+        .circle-fill-1 { fill-opacity: 0.12 !important; }
+        .circle-fill-2 { fill-opacity: 0.09 !important; }
+        .circle-fill-3 { fill-opacity: 0.06 !important; }
+        .circle-fill-4 { fill-opacity: 0.03 !important; }
+        
+        .circle-label {
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            user-select: none;
+        }
+        
+        .location-marker {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        .cursor-update-active .location-marker div {
+            background-color: #e74c3c !important;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.5) !important;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .cursor-info {
+            background: #fff3cd !important;
+            border-left-color: #ffc107 !important;
+        }
+        
+        .cursor-info i {
+            color: #e74c3c !important;
+        }
+        
+        /* City text labels */
+		.city-text-label {
+			font-weight: 600;
+			font-size: 12px;
+			text-shadow: none;
+			padding: 1px 3px;
+			border-radius: 2px;
+			background: white;
+			border: 1px solid #ccc;
+			pointer-events: none;
+			user-select: none;
+			white-space: nowrap;
+			opacity: 0.9;
+		}
+        
+		.city-text-label.major {
+			font-size: 24px;
+			font-weight: 700;
+			text-shadow: none;
+			padding: 2px 4px;
+			border-radius: 3px;
+			background: white;
+			border: 1px solid #ccc;
+			pointer-events: none;
+			user-select: none;
+			white-space: nowrap;
+			opacity: 0.9;
+		}
+
+		.city-text-label.medium {
+			font-size: 20px;
+			font-weight: 700;
+			text-shadow: none;
+			padding: 2px 4px;
+			border-radius: 3px;
+			background: white;
+			border: 1px solid #ccc;
+			pointer-events: none;
+			user-select: none;
+			white-space: nowrap;
+			opacity: 0.9;
+		}
+
+		.city-text-label.small {
+			font-size: 16px;
+			font-weight: 700;
+			text-shadow: none;
+			padding: 1px 3px;
+			border-radius: 2px;
+			background: white;
+			border: 1px solid #ccc;
+			pointer-events: none;
+			user-select: none;
+			white-space: nowrap;
+			opacity: 0.9;
+		}
+
+		/* Population filter */
+		.population-filter {
+			background: #f8f9fa;
+			padding: 15px;
+			border-radius: 10px;
+			border-left: 4px solid #9b59b6;
+			margin-bottom: 25px;
+		}
+
+		.population-filter h3 {
+			color: #2c3e50;
+			font-size: 1.1rem;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 15px;
+		}
+
+		.filter-display {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 10px;
+			padding-top: 10px;
+			border-top: 1px solid #e9ecef;
+		}
+
+		.filter-stat {
+			font-size: 0.9rem;
+			color: #4a5568;
+		}
+
+		.filter-value {
+			font-weight: 600;
+			color: #9b59b6;
+		}
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <div class="panel-title">
+            <i class="fas fa-layer-group"></i>
+            <span>Radius Range Visualizer</span>
+        </div>
+		
+        <!-- Population Filter -->
+        <div class="population-filter">
+            <h3><i class="fas fa-users"></i> Minimum Population</h3>
+            <div class="range-slider-container">
+                <input type="range" class="range-slider" id="populationSlider" 
+                       min="0" max="100000" value="0" step="1" style="color: #9b59b6;">
+                <input type="number" id="populationInput" min="0" max="100000" value="0" 
+                       style="width: 80px; padding: 5px; border-radius: 6px; border: 2px solid #dfe6e9; text-align: center;">
+            </div>
+			<div class="filter-display">
+				<div class="filter-stat">
+					Showing: <span id="visibleCitiesCount" class="filter-value">0</span> / <span id="totalCitiesCount" class="filter-value">0</span> cities
+				</div>
+			</div>
+        </div>
+        
+        <div class="range-section">
+            <div class="range-title">
+                <h3><i class="fas fa-bullseye"></i> Concentric Radius Ranges (km)</h3>
+            </div>
+            
+            <div class="range-controls" id="rangeControls">
+                <!-- Dynamic range controls will be inserted here -->
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="action-btn" id="updateCircles">
+                <i class="fas fa-sync-alt"></i> Update Circles
+            </button>
+            <button class="action-btn" id="resetAll">
+                <i class="fas fa-undo"></i> Reset to Default
+            </button>
+        </div>
+        
+        <div class="info-box">
+            <p><i class="fas fa-info-circle"></i> <strong>Click and drag</strong> the center marker to move circles</p>
+            <p><i class="fas fa-sliders-h"></i> <strong>Adjust sliders</strong> to change each radius range</p>
+            <p><i class="fas fa-palette"></i> <strong>Click color pickers</strong> to customize each ring's color</p>
+            <p><i class="fas fa-keyboard"></i> <strong>Hold C key</strong> to make circles follow cursor (0.1s updates)</p>
+        </div>
+    </div>
+    
+    <div class="stats-panel">
+        <div class="stats-title">
+            <i class="fas fa-chart-pie"></i>
+            <span>Current Ranges</span>
+        </div>
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be dynamically updated -->
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map centered on Israel
+        const map = L.map('map').setView([31.5, 34.75], 8);
+        
+        // Add detailed OpenStreetMap tiles with better city visibility
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Add terrain layer for better context
+        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
+            opacity: 0.3
+        }).addTo(map);
+        
+        // Application state
+        const appState = {
+            center: [31.5, 34.75], // Center of Israel
+            ranges: [
+				{ id: 0, name: "Inner Ring", radius: 15, color: "#FFD700", min: 5, max: 50 }, // Yellow
+				{ id: 1, name: "Middle Ring", radius: 40, color: "#00FF00", min: 20, max: 100 }, // Green
+				{ id: 2, name: "Outer Ring", radius: 75, color: "#20B2AA", min: 50, max: 150 }, // Teal
+				{ id: 3, name: "Extended Ring", radius: 120, color: "#0000FF", min: 80, max: 200 }, // Blue
+				{ id: 4, name: "Maximum Ring", radius: 225, color: "#800080", min: 150, max: 300 } // Purple
+            ],
+            circles: [],
+            centerMarker: null,
+            cityMarkers: [],
+            cityLabels: [],
+            currentMousePosition: null,
+            isCursorUpdateActive: false,
+            lastCursorUpdate: 0,
+            CURSOR_UPDATE_INTERVAL: 100, // 0.1 seconds
+			minPopulation: 0,
+            longPressTimer: null // <--- ADD THIS LINE
+        };
+        
+        // Major Israeli cities with population data
+        const israelCities = [
+			{ name: "ירושלים", lat: 31.782742, lng: 35.219011, population: 1050151, type: "major" },
+			{ name: "תל אביב -יפו", lat: 32.075313, lng: 34.787861, population: 494900, type: "major" },
+			{ name: "חיפה", lat: 32.802685, lng: 35.007806, population: 297083, type: "major" },
+			{ name: "פתח תקווה", lat: 32.083982, lng: 34.884847, population: 270403, type: "major" },
+			{ name: "ראשון לציון", lat: 31.967915, lng: 34.79828, population: 259275, type: "major" },
+			{ name: "נתניה", lat: 32.315019, lng: 34.861059, population: 234812, type: "major" },
+			{ name: "בני ברק", lat: 32.085627, lng: 34.833309, population: 229995, type: "major" },
+			{ name: "אשדוד", lat: 31.794305, lng: 34.647931, population: 228562, type: "major" },
+			{ name: "באר שבע", lat: 31.252746, lng: 34.783517, population: 223587, type: "major" },
+			{ name: "חולון", lat: 32.015399, lng: 34.777442, population: 191829, type: "major" },
+			{ name: "בית שמש", lat: 31.730709, lng: 34.986816, population: 176786, type: "major" },
+			{ name: "רמת גן", lat: 32.067794, lng: 34.822706, population: 172242, type: "major" },
+			{ name: "אשקלון", lat: 31.669312, lng: 34.572628, population: 166865, type: "major" },
+			{ name: "רחובות", lat: 31.89061, lng: 34.806421, population: 155050, type: "major" },
+			{ name: "בת ים", lat: 32.018671, lng: 34.748446, population: 129495, type: "major" },
+			{ name: "הרצלייה", lat: 32.168767, lng: 34.831477, population: 110885, type: "major" },
+			{ name: "חדרה", lat: 32.434479, lng: 34.916866, population: 107974, type: "major" },
+			{ name: "מודיעין-מכבים-רעות", lat: 31.895023, lng: 35.007953, population: 100052, type: "major" },
+			{ name: "כפר סבא", lat: 32.180123, lng: 34.911328, population: 99410, type: "medium" },
+			{ name: "לוד", lat: 31.949942, lng: 34.88692, population: 94189, type: "medium" },
+			{ name: "מודיעין עילית", lat: 31.93091, lng: 35.042435, population: 89627, type: "medium" },
+			{ name: "רמלה", lat: 31.926709, lng: 34.865132, population: 86052, type: "medium" },
+			{ name: "רעננה", lat: 32.184553, lng: 34.868548, population: 82963, type: "medium" },
+			{ name: "ראש העין", lat: 32.093414, lng: 34.957199, population: 79023, type: "medium" },
+			{ name: "רהט", lat: 31.389398, lng: 34.753186, population: 77996, type: "medium" },
+			{ name: "נצרת", lat: 32.701005, lng: 35.293074, population: 75704, type: "medium" },
+			{ name: "קריית גת", lat: 31.610109, lng: 34.764687, population: 72139, type: "medium" },
+			{ name: "ביתר עילית", lat: 31.693749, lng: 35.11104, population: 71698, type: "medium" },
+			{ name: "נהרייה", lat: 33.007385, lng: 35.096174, population: 67877, type: "medium" },
+			{ name: "הוד השרון", lat: 32.151122, lng: 34.892659, population: 66398, type: "medium" },
+			{ name: "עפולה", lat: 32.615886, lng: 35.300534, population: 66362, type: "medium" },
+			{ name: "קריית אתא", lat: 32.803171, lng: 35.107227, population: 62584, type: "medium" },
+			{ name: "אום אל-פחם", lat: 32.519389, lng: 35.150267, population: 60210, type: "medium" },
+			{ name: "גבעתיים", lat: 32.070284, lng: 34.808472, population: 58600, type: "medium" },
+			{ name: "יבנה", lat: 31.87565, lng: 34.735286, population: 58090, type: "medium" },
+			{ name: "נתיבות", lat: 31.421264, lng: 34.581617, population: 56019, type: "medium" },
+			{ name: "אילת", lat: 29.551875, lng: 34.941745, population: 56004, type: "medium" },
+			{ name: "עכו", lat: 32.927403, lng: 35.083078, population: 52884, type: "medium" },
+			{ name: "טבריה", lat: 32.786467, lng: 35.522049, population: 52122, type: "medium" },
+			{ name: "קריית מוצקין", lat: 32.835138, lng: 35.078643, population: 51488, type: "medium" },
+			{ name: "אלעד", lat: 32.050043, lng: 34.955145, population: 50845, type: "medium" },
+			{ name: "רמת השרון", lat: 32.13832, lng: 34.839921, population: 48860, type: "medium" },
+			{ name: "כרמיאל", lat: 32.909949, lng: 35.29015, population: 47941, type: "medium" },
+			{ name: "נס ציונה", lat: 31.925235, lng: 34.796375, population: 47268, type: "medium" },
+			{ name: "קריית ביאליק", lat: 32.837465, lng: 35.088712, population: 47072, type: "medium" },
+			{ name: "טייבה", lat: 32.263711, lng: 35.005061, population: 46870, type: "medium" },
+			{ name: "פרדס חנה-כרכור", lat: 32.472047, lng: 34.974147, population: 46601, type: "medium" },
+			{ name: "נוף הגליל", lat: 32.707537, lng: 35.321888, population: 45805, type: "medium" },
+			{ name: "קריית אונו", lat: 32.059286, lng: 34.855696, population: 45048, type: "medium" },
+			{ name: "שפרעם", lat: 32.80526, lng: 35.170401, population: 43858, type: "medium" },
+			{ name: "קריית ים", lat: 32.847735, lng: 35.070582, population: 41959, type: "medium" },
+			{ name: "חריש", lat: 32.459326, lng: 35.046335, population: 41574, type: "medium" },
+			{ name: "אור יהודה", lat: 32.028507, lng: 34.852425, population: 41130, type: "medium" },
+			{ name: "אופקים", lat: 31.305442, lng: 34.619365, population: 39894, type: "medium" },
+			{ name: "דימונה", lat: 31.069266, lng: 35.034641, population: 39590, type: "medium" },
+			{ name: "צפת", lat: 32.963135, lng: 35.503833, population: 38687, type: "medium" },
+			{ name: "באר יעקב", lat: 31.940945, lng: 34.837572, population: 37493, type: "medium" },
+			{ name: "שדרות", lat: 31.527928, lng: 34.592882, population: 37239, type: "medium" },
+			{ name: "טמרה", lat: 32.853108, lng: 35.188117, population: 36919, type: "medium" },
+			{ name: "מעלה אדומים", lat: 31.779248, lng: 35.305835, population: 35845, type: "medium" },
+			{ name: "סח'נין", lat: 32.863588, lng: 35.297691, population: 33726, type: "medium" },
+			{ name: "טירת כרמל", lat: 32.76014, lng: 34.969759, population: 32166, type: "medium" },
+			{ name: "יהוד-מונוסון", lat: 32.032129, lng: 34.884922, population: 32145, type: "medium" },
+			{ name: "גדרה", lat: 31.810971, lng: 34.778755, population: 31389, type: "medium" },
+			{ name: "באקה אל-גרביה", lat: 32.418875, lng: 35.040027, population: 31276, type: "medium" },
+			{ name: "כפר יונה", lat: 32.314344, lng: 34.931827, population: 29820, type: "small" },
+			{ name: "ערד", lat: 31.257765, lng: 35.212515, population: 29505, type: "small" },
+			{ name: "גבעת שמואל", lat: 32.075797, lng: 34.848833, population: 29405, type: "small" },
+			{ name: "מגדל העמק", lat: 32.676928, lng: 35.241341, population: 28431, type: "small" },
+			{ name: "כפר קאסם", lat: 32.114408, lng: 34.971182, population: 27997, type: "small" },
+			{ name: "קריית מלאכי", lat: 31.730983, lng: 34.743867, population: 27957, type: "small" },
+			{ name: "טירה", lat: 32.232744, lng: 34.953969, population: 27680, type: "small" },
+			{ name: "עראבה", lat: 32.850523, lng: 35.33654, population: 27175, type: "small" },
+			{ name: "מבשרת ציון", lat: 31.798775, lng: 35.149763, population: 26534, type: "small" },
+			{ name: "אור עקיבא", lat: 32.506694, lng: 34.918361, population: 25922, type: "small" },
+			{ name: "גני תקווה", lat: 32.059054, lng: 34.873561, population: 25487, type: "small" },
+			{ name: "כפר כנא", lat: 32.745011, lng: 35.34062, population: 25375, type: "small" },
+			{ name: "קלנסווה", lat: 32.287486, lng: 34.975528, population: 25167, type: "small" },
+			{ name: "גן יבנה", lat: 31.787254, lng: 34.706973, population: 25144, type: "small" },
+			{ name: "גבעת זאב", lat: 31.854866, lng: 35.165515, population: 25105, type: "small" },
+			{ name: "יקנעם עילית", lat: 32.645539, lng: 35.092605, population: 24928, type: "small" },
+			{ name: "תל שבע", lat: 31.247416, lng: 34.859145, population: 24781, type: "small" },
+			{ name: "קריית שמונה", lat: 33.212112, lng: 35.573121, population: 24437, type: "small" },
+			{ name: "זכרון יעקב", lat: 32.569381, lng: 34.951174, population: 24200, type: "small" },
+			{ name: "שוהם", lat: 31.996588, lng: 34.943745, population: 23592, type: "small" },
+			{ name: "מגאר", lat: 32.885995, lng: 35.410738, population: 23486, type: "small" },
+			{ name: "מעלות-תרשיחא", lat: 33.013281, lng: 35.276091, population: 23042, type: "small" },
+			{ name: "חורה", lat: 31.296201, lng: 34.934675, population: 23035, type: "small" },
+			{ name: "נשר", lat: 32.767448, lng: 35.040189, population: 22897, type: "small" },
+			{ name: "קדימה-צורן", lat: 32.279317, lng: 34.918323, population: 22655, type: "small" },
+			{ name: "כפר מנדא", lat: 32.808878, lng: 35.259098, population: 22267, type: "small" },
+			{ name: "אריאל", lat: 32.103214, lng: 35.186017, population: 22190, type: "small" },
+			{ name: "כסיפה", lat: 31.242568, lng: 35.087721, population: 21849, type: "small" },
+			{ name: "ערערה-בנגב", lat: 31.157377, lng: 35.021941, population: 21259, type: "small" },
+			{ name: "כפר קרע", lat: 32.504327, lng: 35.049342, population: 21067, type: "small" },
+			{ name: "ערערה", lat: 32.498887, lng: 35.088307, population: 20733, type: "small" },
+			{ name: "ריינה", lat: 32.719837, lng: 35.310149, population: 20654, type: "small" },
+			{ name: "בית שאן", lat: 32.493852, lng: 35.495512, population: 20253, type: "small" },
+			{ name: "ג'דיידה-מכר", lat: 32.92853, lng: 35.145335, population: 20232, type: "small" },
+			{ name: "לקיה", lat: 31.32305, lng: 34.865951, population: 19361, type: "small" },
+			{ name: "קריית טבעון", lat: 32.714167, lng: 35.124315, population: 19157, type: "small" },
+			{ name: "יפיע", lat: 32.683577, lng: 35.274419, population: 18837, type: "small" },
+			{ name: "דאלית אל-כרמל", lat: 32.692582, lng: 35.049753, population: 18363, type: "small" },
+			{ name: "ירכא", lat: 32.95399, lng: 35.206108, population: 16823, type: "small" },
+			{ name: "שגב-שלום", lat: 31.195929, lng: 34.837771, population: 16736, type: "small" },
+			{ name: "מזכרת בתיה", lat: 31.849892, lng: 34.842128, population: 16334, type: "small" },
+			{ name: "ג'סר א-זרקא", lat: 32.535441, lng: 34.910296, population: 15823, type: "small" },
+			{ name: "בנימינה-גבעת עדה", lat: 32.520445, lng: 34.960571, population: 15566, type: "small" },
+			{ name: "מעלה עירון", lat: 32.550492, lng: 35.154315, population: 15486, type: "small" },
+			{ name: "מג'ד אל-כרום", lat: 32.919987, lng: 35.25303, population: 15429, type: "small" },
+			{ name: "אבן יהודה", lat: 32.269992, lng: 34.884314, population: 15370, type: "small" },
+			{ name: "אכסאל", lat: 32.680556, lng: 35.323036, population: 15134, type: "small" },
+			{ name: "רכסים", lat: 32.750659, lng: 35.099868, population: 15087, type: "small" },
+			{ name: "טורעאן", lat: 32.775448, lng: 35.374011, population: 14931, type: "small" },
+			{ name: "תל מונד", lat: 32.251717, lng: 34.915895, population: 14771, type: "small" },
+			{ name: "אבו סנאן", lat: 32.959584, lng: 35.1677, population: 14543, type: "small" },
+			{ name: "עין מאהל", lat: 32.721049, lng: 35.351486, population: 14029, type: "small" },
+			{ name: "נחף", lat: 32.933904, lng: 35.316273, population: 13996, type: "small" },
+			{ name: "אעבלין", lat: 32.825614, lng: 35.1837, population: 13634, type: "small" },
+			{ name: "פוריידיס", lat: 32.596911, lng: 34.950936, population: 13548, type: "small" },
+			{ name: "עספיא", lat: 32.715376, lng: 35.064177, population: 13403, type: "small" },
+			{ name: "אזור", lat: 32.022463, lng: 34.805894, population: 13067, type: "small" },
+			{ name: "ג'ת", lat: 32.398775, lng: 35.033983, population: 12835, type: "small" },
+			{ name: "דייר אל-אסד", lat: 32.935111, lng: 35.265581, population: 12620, type: "small" },
+			{ name: "כאבול", lat: 32.868888, lng: 35.207239, population: 12589, type: "small" },
+			{ name: "בית ג'ן", lat: 32.963113, lng: 35.376475, population: 12446, type: "small" },
+			{ name: "אפרת", lat: 31.66515, lng: 35.157591, population: 12115, type: "small" },
+			{ name: "בסמ\"ה", lat: 32.529243, lng: 35.103117, population: 12002, type: "small" },
+			{ name: "ירוחם", lat: 30.986631, lng: 34.926253, population: 11989, type: "small" },
+			{ name: "עתלית", lat: 32.690987, lng: 34.941884, population: 11611, type: "small" },
+			{ name: "מיתר", lat: 31.326692, lng: 34.929524, population: 11609, type: "small" },
+			{ name: "קריית עקרון", lat: 31.86032, lng: 34.821598, population: 11283, type: "small" },
+			{ name: "מג'דל שמס", lat: 33.262546, lng: 35.768735, population: 11264, type: "small" },
+			{ name: "ביר אל-מכסור", lat: 32.781323, lng: 35.220665, population: 11068, type: "small" },
+			{ name: "חצור הגלילית", lat: 32.982161, lng: 35.542443, population: 11013, type: "small" },
+			{ name: "ג'לג'וליה", lat: 32.150874, lng: 34.95114, population: 10992, type: "small" },
+			{ name: "דבורייה", lat: 32.690287, lng: 35.370085, population: 10830, type: "small" },
+			{ name: "דייר חנא", lat: 32.861714, lng: 35.366974, population: 10762, type: "small" },
+			{ name: "בועיינה-נוג'ידאת", lat: 32.806737, lng: 35.366906, population: 10630, type: "small" },
+			{ name: "קרני שומרון", lat: 32.168336, lng: 35.090584, population: 10541, type: "small" },
+			{ name: "כפר יאסיף", lat: 32.952774, lng: 35.161554, population: 10527, type: "small" },
+			{ name: "צור הדסה", lat: 31.715282, lng: 35.094898, population: 10458, type: "small" },
+			{ name: "אורנית", lat: 32.129991, lng: 34.991914, population: 10088, type: "small" },
+			{ name: "כסרא-סמיע", lat: 32.967801, lng: 35.302571, population: 9549, type: "small" },
+			{ name: "זרזיר", lat: 32.72383, lng: 35.220964, population: 9149, type: "small" },
+			{ name: "עילוט", lat: 32.716488, lng: 35.260119, population: 9077, type: "small" },
+			{ name: "כוכב יאיר", lat: 32.220508, lng: 34.994282, population: 9007, type: "small" },
+			{ name: "אבו גוש", lat: 31.804964, lng: 35.108647, population: 8847, type: "small" },
+			{ name: "שער שומרון", lat: 32.120698, lng: 35.030327, population: 8836, type: "small" },
+			{ name: "משהד", lat: 32.738917, lng: 35.321663, population: 8822, type: "small" },
+			{ name: "בענה", lat: 32.928084, lng: 35.27167, population: 8713, type: "small" },
+			{ name: "ראמה", lat: 32.937286, lng: 35.365604, population: 8406, type: "small" },
+			{ name: "בסמת טבעון", lat: 32.738958, lng: 35.147339, population: 8268, type: "small" },
+			{ name: "שלומי", lat: 33.0748, lng: 35.146812, population: 8226, type: "small" },
+			{ name: "עומר", lat: 31.266725, lng: 34.849111, population: 8077, type: "small" },
+			{ name: "אלפי מנשה", lat: 32.172561, lng: 35.012088, population: 8038, type: "small" },
+			{ name: "להבים", lat: 31.367979, lng: 34.811058, population: 8028, type: "small" },
+			{ name: "קצרין", lat: 32.991412, lng: 35.685325, population: 8012, type: "small" },
+			{ name: "פרדסייה", lat: 32.304878, lng: 34.909037, population: 7972, type: "small" },
+			{ name: "זמר", lat: 32.36403, lng: 35.033485, population: 7953, type: "small" },
+			{ name: "רמת ישי", lat: 32.701751, lng: 35.164042, population: 7953, type: "small" },
+			{ name: "קריית יערים", lat: 31.802702, lng: 35.099335, population: 7839, type: "small" },
+			{ name: "שעב", lat: 32.889191, lng: 35.233744, population: 7790, type: "small" },
+			{ name: "צור יצחק", lat: 32.2401, lng: 34.997664, population: 7780, type: "small" },
+			{ name: "בית דגן", lat: 31.999401, lng: 34.828514, population: 7727, type: "small" },
+			{ name: "קריית ארבע", lat: 31.534402, lng: 35.116801, population: 7698, type: "small" },
+			{ name: "טובא-זנגרייה", lat: 32.964107, lng: 35.589961, population: 7173, type: "small" },
+			{ name: "בוקעאתא", lat: 33.200584, lng: 35.777196, population: 6983, type: "small" },
+			{ name: "תל ציון", lat: 31.878487, lng: 35.23712, population: 6935, type: "small" },
+			{ name: "יאנוח-ג'ת", lat: 32.979609, lng: 35.243488, population: 6890, type: "small" },
+			{ name: "חורפיש", lat: 33.016577, lng: 35.345017, population: 6876, type: "small" },
+			{ name: "ג'ולס", lat: 32.941148, lng: 35.181909, population: 6821, type: "small" },
+			{ name: "בני עי\"ש", lat: 31.788457, lng: 34.759125, population: 6579, type: "small" },
+			{ name: "כעביה-טבאש-חג'אג'רה", lat: 32.748951, lng: 35.183814, population: 6545, type: "small" },
+			{ name: "שבלי - אום אל-גנם", lat: 32.688051, lng: 35.400727, population: 6476, type: "small" },
+			{ name: "כפר חב\"ד", lat: 31.989151, lng: 34.848671, population: 6391, type: "small" },
+			{ name: "בית אל", lat: 31.940725, lng: 35.221542, population: 6359, type: "small" },
+			{ name: "פקיעין (בוקייעה)", lat: 32.976643, lng: 35.326287, population: 6114, type: "small" },
+			{ name: "אל סייד", lat: 31.284283, lng: 34.912392, population: 6109, type: "small" },
+			{ name: "שילה", lat: 32.051867, lng: 35.299252, population: 6042, type: "small" },
+			{ name: "טלמון", lat: 31.953326, lng: 35.123471, population: 6040, type: "small" },
+			{ name: "גבע בנימין", lat: 31.84881, lng: 35.274363, population: 5900, type: "small" },
+			{ name: "עיילבון", lat: 32.835301, lng: 35.400239, population: 5849, type: "small" },
+			{ name: "מצפה רמון", lat: 30.621819, lng: 34.800175, population: 5842, type: "small" },
+			{ name: "אבו תלול", lat: 31.183088, lng: 34.928859, population: 5716, type: "small" },
+			{ name: "עמנואל", lat: 32.161372, lng: 35.13691, population: 5675, type: "small" },
+			{ name: "קיסריה", lat: 32.503223, lng: 34.906741, population: 5633, type: "small" },
+			{ name: "בית אריה-עופרים", lat: 32.032011, lng: 35.048418, population: 5627, type: "small" },
+			{ name: "אום בטין", lat: 31.279253, lng: 34.879759, population: 5572, type: "small" },
+			{ name: "כפר ורדים", lat: 32.994729, lng: 35.267558, population: 5534, type: "small" },
+			{ name: "עלי זהב", lat: 32.069293, lng: 35.05651, population: 5474, type: "small" },
+			{ name: "סעוה", lat: 31.253942, lng: 34.969115, population: 5466, type: "small" },
+			{ name: "כפר אדומים", lat: 31.825854, lng: 35.336571, population: 5206, type: "small" },
+			{ name: "עלי", lat: 32.07143, lng: 35.26554, population: 4979, type: "small" },
+			{ name: "בת חפר", lat: 32.332248, lng: 35.012112, population: 4865, type: "small" },
+			{ name: "תקוע", lat: 31.649148, lng: 35.228679, population: 4834, type: "small" },
+			{ name: "יבנאל", lat: 32.707428, lng: 35.501974, population: 4801, type: "small" },
+			{ name: "מוקייבלה", lat: 32.512875, lng: 35.295348, population: 4638, type: "small" },
+			{ name: "קדומים", lat: 32.218276, lng: 35.159314, population: 4564, type: "small" },
+			{ name: "אלקנה", lat: 32.110316, lng: 35.035295, population: 4493, type: "small" },
+			{ name: "סביון", lat: 32.045771, lng: 34.877198, population: 4404, type: "small" },
+			{ name: "הר אדר", lat: 31.82571, lng: 35.12767, population: 4340, type: "small" },
+			{ name: "יד בנימין", lat: 31.796702, lng: 34.820752, population: 4338, type: "small" },
+			{ name: "סאג'ור", lat: 32.941173, lng: 35.342032, population: 4304, type: "small" },
+			{ name: "כפר תבור", lat: 32.685984, lng: 35.418967, population: 4275, type: "small" },
+			{ name: "מסעדה", lat: 33.229977, lng: 35.755169, population: 4205, type: "small" },
+			{ name: "כוכב יעקב", lat: 31.878899, lng: 35.244877, population: 4093, type: "small" },
+			{ name: "כאוכב אבו אל-היג'א", lat: 32.829522, lng: 35.247214, population: 4036, type: "small" },
+			{ name: "כפר ברא", lat: 32.130014, lng: 34.969246, population: 3962, type: "small" },
+			{ name: "מזרעה", lat: 32.982167, lng: 35.097991, population: 3922, type: "small" },
+			{ name: "סלמה", lat: 32.893603, lng: 35.362233, population: 3878, type: "small" },
+			{ name: "אליכין", lat: 32.406667, lng: 34.923641, population: 3856, type: "small" },
+			{ name: "עין נקובא", lat: 31.792166, lng: 35.119768, population: 3849, type: "small" },
+			{ name: "עוזייר", lat: 32.789455, lng: 35.324205, population: 3557, type: "small" },
+			{ name: "קצר א-סר", lat: 31.081928, lng: 34.98068, population: 3551, type: "small" },
+			{ name: "כפר כמא", lat: 32.720727, lng: 35.438901, population: 3545, type: "small" },
+			{ name: "נוקדים", lat: 31.648079, lng: 35.246791, population: 3498, type: "small" },
+			{ name: "ברכה", lat: 32.191811, lng: 35.263775, population: 3485, type: "small" },
+			{ name: "פסוטה", lat: 33.047468, lng: 35.308269, population: 3426, type: "small" },
+			{ name: "מעיליא", lat: 33.02623, lng: 35.255764, population: 3323, type: "small" },
+			{ name: "ראש פינה", lat: 32.967043, lng: 35.541048, population: 3308, type: "small" },
+			{ name: "גני מודיעין", lat: 31.928033, lng: 35.015803, population: 3260, type: "small" },
+			{ name: "ג'ש (גוש חלב)", lat: 33.021484, lng: 35.444146, population: 3244, type: "small" },
+			{ name: "רבבה", lat: 32.117647, lng: 35.126876, population: 3202, type: "small" },
+			{ name: "מתן", lat: 32.157525, lng: 34.972535, population: 3145, type: "small" },
+			{ name: "אלון שבות", lat: 31.653806, lng: 35.124639, population: 3141, type: "small" },
+			{ name: "עפרה", lat: 31.952898, lng: 35.259877, population: 3110, type: "small" },
+			{ name: "חשמונאים", lat: 31.930351, lng: 35.02227, population: 3091, type: "small" },
+			{ name: "שייח' דנון", lat: 32.992496, lng: 35.146651, population: 2997, type: "small" },
+			{ name: "מרכז שפירא", lat: 31.695061, lng: 34.705124, population: 2962, type: "small" },
+			{ name: "סולם", lat: 32.604982, lng: 35.332961, population: 2933, type: "small" },
+			{ name: "נעלה", lat: 31.9622, lng: 35.062108, population: 2931, type: "small" },
+			{ name: "ביר הדאג'", lat: 31.025136, lng: 34.700368, population: 2899, type: "small" },
+			{ name: "באר גנים", lat: 31.699258, lng: 34.607424, population: 2890, type: "small" },
+			{ name: "מצפה יריחו", lat: 31.815097, lng: 35.39287, population: 2867, type: "small" },
+			{ name: "אבטין", lat: 32.76047, lng: 35.111969, population: 2837, type: "small" },
+			{ name: "אבו קורינאת (יישוב)", lat: 31.139508, lng: 34.960852, population: 2827, type: "small" },
+			{ name: "כפר מצר", lat: 32.644538, lng: 35.420605, population: 2816, type: "small" },
+			{ name: "ברוכין", lat: 32.080419, lng: 35.088988, population: 2808, type: "small" },
+			{ name: "כוכב השחר", lat: 31.958772, lng: 35.347773, population: 2778, type: "small" },
+			{ name: "צור משה", lat: 32.296653, lng: 34.912387, population: 2769, type: "small" },
+			{ name: "יקיר", lat: 32.147963, lng: 35.110357, population: 2742, type: "small" },
+			{ name: "ע'ג'ר", lat: 33.269644, lng: 35.621909, population: 2739, type: "small" },
+			{ name: "מבוא חורון", lat: 31.848093, lng: 35.033927, population: 2659, type: "small" },
+			{ name: "גן נר", lat: 32.530874, lng: 35.336645, population: 2657, type: "small" },
+			{ name: "ניצן", lat: 31.738863, lng: 34.630228, population: 2634, type: "small" },
+			{ name: "קציר", lat: 32.485029, lng: 35.101858, population: 2630, type: "small" },
+			{ name: "רומת הייב", lat: 32.776533, lng: 35.303342, population: 2626, type: "small" },
+			{ name: "צופים", lat: 32.197608, lng: 35.008811, population: 2605, type: "small" },
+			{ name: "אלעזר", lat: 31.660101, lng: 35.139838, population: 2598, type: "small" },
+			{ name: "אבני חפץ", lat: 32.284152, lng: 35.071491, population: 2526, type: "small" },
+			{ name: "יצהר", lat: 32.166977, lng: 35.235992, population: 2525, type: "small" },
+			{ name: "גבעת ברנר", lat: 31.86623, lng: 34.799456, population: 2518, type: "small" },
+			{ name: "נאעורה", lat: 32.612792, lng: 35.389866, population: 2481, type: "small" },
+			{ name: "עין קנייא", lat: 33.236037, lng: 35.730059, population: 2470, type: "small" },
+			{ name: "אחוזת ברק", lat: 32.641913, lng: 35.336585, population: 2460, type: "small" },
+			{ name: "נווה דניאל", lat: 31.676913, lng: 35.141967, population: 2418, type: "small" },
+			{ name: "נופית", lat: 32.758271, lng: 35.144146, population: 2380, type: "small" },
+			{ name: "אחיעזר", lat: 31.981353, lng: 34.869481, population: 2335, type: "small" },
+			{ name: "כפר האורנים", lat: 31.918636, lng: 35.035562, population: 2314, type: "small" },
+			{ name: "תפרח", lat: 31.324324, lng: 34.676738, population: 2307, type: "small" },
+			{ name: "בית יצחק-שער חפר", lat: 32.333137, lng: 34.889296, population: 2299, type: "small" },
+			{ name: "פסגות", lat: 31.897653, lng: 35.223479, population: 2298, type: "small" },
+			{ name: "ניל\"י", lat: 31.961909, lng: 35.045236, population: 2262, type: "small" },
+			{ name: "מעלה מכמש", lat: 31.877683, lng: 35.306757, population: 2259, type: "small" },
+			{ name: "מטולה", lat: 33.277563, lng: 35.575575, population: 2248, type: "small" },
+			{ name: "ברקת", lat: 32.015046, lng: 34.942984, population: 2232, type: "small" },
+			{ name: "שתולים", lat: 31.772797, lng: 34.682115, population: 2224, type: "small" },
+			{ name: "פדואל", lat: 32.061179, lng: 35.05108, population: 2220, type: "small" },
+			{ name: "טייבה (בעמק)", lat: 32.603179, lng: 35.443495, population: 2198, type: "small" },
+			{ name: "אלון מורה", lat: 32.233226, lng: 35.330706, population: 2170, type: "small" },
+			{ name: "ברקן", lat: 32.107414, lng: 35.104349, population: 2170, type: "small" },
+			{ name: "מגדל", lat: 32.837553, lng: 35.501862, population: 2161, type: "small" },
+			{ name: "שמשית", lat: 32.731697, lng: 35.245172, population: 2155, type: "small" },
+			{ name: "בית חשמונאי", lat: 31.887456, lng: 34.917734, population: 2154, type: "small" },
+			{ name: "גבעת אבני", lat: 32.774498, lng: 35.437452, population: 2143, type: "small" },
+			{ name: "נורדייה", lat: 32.313799, lng: 34.894917, population: 2127, type: "small" },
+			{ name: "מכחול", lat: 31.288959, lng: 35.065451, population: 2105, type: "small" },
+			{ name: "כפר ויתקין", lat: 32.380519, lng: 34.876347, population: 2094, type: "small" },
+			{ name: "מעגן מיכאל", lat: 32.554901, lng: 34.914236, population: 2092, type: "small" },
+			{ name: "בת עין", lat: 31.657152, lng: 35.099457, population: 2034, type: "small" },
+			{ name: "ניין", lat: 32.630152, lng: 35.347192, population: 2033, type: "small" },
+			{ name: "שער אפרים", lat: 32.287936, lng: 34.995697, population: 2020, type: "small" },
+			{ name: "הושעיה", lat: 32.757445, lng: 35.290142, population: 2014, type: "small" },
+			{ name: "אבן שמואל", lat: 31.573825, lng: 34.763983, population: 2007, type: "small" },
+			{ name: "לפיד", lat: 31.916304, lng: 35.031168, population: 2001, type: "small" },
+			{ name: "שעלבים", lat: 31.869015, lng: 34.981451, population: 1987, type: "small" },
+			{ name: "כפר שמריהו", lat: 32.185017, lng: 34.81963, population: 1981, type: "small" },
+			{ name: "חספין", lat: 32.844323, lng: 35.792778, population: 1956, type: "small" },
+			{ name: "מייסר", lat: 32.443628, lng: 35.040396, population: 1952, type: "small" },
+			{ name: "בני דקלים", lat: 31.516391, lng: 34.918726, population: 1947, type: "small" },
+			{ name: "יסוד המעלה", lat: 33.055905, lng: 35.60141, population: 1930, type: "small" },
+			{ name: "נוף איילון", lat: 31.867835, lng: 34.987404, population: 1900, type: "small" },
+			{ name: "נען", lat: 31.882848, lng: 34.856278, population: 1834, type: "small" },
+			{ name: "צנדלה", lat: 32.521573, lng: 35.321837, population: 1817, type: "small" },
+			{ name: "חיננית", lat: 32.480322, lng: 35.165961, population: 1793, type: "small" },
+			{ name: "אחיטוב", lat: 32.386713, lng: 34.989083, population: 1782, type: "small" },
+			{ name: "גבעת אלה", lat: 32.720417, lng: 35.243919, population: 1780, type: "small" },
+			{ name: "עראמשה", lat: 33.08758, lng: 35.224202, population: 1773, type: "small" },
+			{ name: "עדי", lat: 32.781158, lng: 35.172385, population: 1772, type: "small" },
+			{ name: "כרמי יוסף", lat: 31.846606, lng: 34.918822, population: 1761, type: "small" },
+			{ name: "איתמר", lat: 32.172486, lng: 35.306427, population: 1759, type: "small" },
+			{ name: "חמאם", lat: 32.828793, lng: 35.488494, population: 1759, type: "small" },
+			{ name: "מעלה אפרים", lat: 32.070189, lng: 35.402542, population: 1748, type: "small" },
+			{ name: "מאור", lat: 32.423449, lng: 35.004582, population: 1736, type: "small" },
+			{ name: "קדרון", lat: 31.814368, lng: 34.794539, population: 1732, type: "small" },
+			{ name: "טמרה (יזרעאל)", lat: 32.633458, lng: 35.40242, population: 1727, type: "small" },
+			{ name: "חצב", lat: 31.78002, lng: 34.768234, population: 1724, type: "small" },
+			{ name: "אלומה", lat: 31.650451, lng: 34.742272, population: 1706, type: "small" },
+			{ name: "רמות השבים", lat: 32.165464, lng: 34.883206, population: 1689, type: "small" },
+			{ name: "עין ורד", lat: 32.263598, lng: 34.930344, population: 1672, type: "small" },
+			{ name: "עזריקם", lat: 31.749756, lng: 34.695606, population: 1671, type: "small" },
+			{ name: "גילת", lat: 31.326901, lng: 34.650573, population: 1666, type: "small" },
+			{ name: "מוצא עילית", lat: 31.792744, lng: 35.156154, population: 1662, type: "small" },
+			{ name: "עין יהב", lat: 30.657045, lng: 35.236024, population: 1653, type: "small" },
+			{ name: "כמאנה", lat: 32.912149, lng: 35.349321, population: 1635, type: "small" },
+			{ name: "הר גילה", lat: 31.722241, lng: 35.166911, population: 1634, type: "small" },
+			{ name: "פורייה - נווה עובד", lat: 32.743105, lng: 35.53584, population: 1631, type: "small" },
+			{ name: "בית אלעזרי", lat: 31.842978, lng: 34.80147, population: 1629, type: "small" },
+			{ name: "כפר הס", lat: 32.245225, lng: 34.932394, population: 1624, type: "small" },
+			{ name: "מורשת", lat: 32.824946, lng: 35.231395, population: 1610, type: "small" },
+			{ name: "כפר תפוח", lat: 32.117645, lng: 35.248617, population: 1605, type: "small" },
+			{ name: "סוסיה", lat: 31.391025, lng: 35.112067, population: 1605, type: "small" },
+			{ name: "דולב", lat: 31.925392, lng: 35.131733, population: 1593, type: "small" },
+			{ name: "פורת", lat: 32.275252, lng: 34.948799, population: 1587, type: "small" },
+			{ name: "נהלל", lat: 32.689322, lng: 35.195046, population: 1573, type: "small" },
+			{ name: "מדרשת בן גוריון", lat: 30.852067, lng: 34.780008, population: 1571, type: "small" },
+			{ name: "שדה עוזיהו", lat: 31.755413, lng: 34.676292, population: 1556, type: "small" },
+			{ name: "מנשית זבדה", lat: 32.705508, lng: 35.192133, population: 1550, type: "small" },
+			{ name: "קדר", lat: 31.75193, lng: 35.307779, population: 1548, type: "small" },
+			{ name: "בית זית", lat: 31.781039, lng: 35.160405, population: 1541, type: "small" },
+			{ name: "נחלים", lat: 32.058001, lng: 34.910829, population: 1519, type: "small" },
+			{ name: "שפיים", lat: 32.216375, lng: 34.823402, population: 1514, type: "small" },
+			{ name: "אספר", lat: 31.584954, lng: 35.185951, population: 1513, type: "small" },
+			{ name: "גשר הזיו", lat: 33.03753, lng: 35.110171, population: 1513, type: "small" },
+			{ name: "יגור", lat: 32.740979, lng: 35.075724, population: 1508, type: "small" },
+			{ name: "עין שריד", lat: 32.272669, lng: 34.933957, population: 1504, type: "small" },
+			{ name: "עין הבשור", lat: 31.280371, lng: 34.441, population: 1501, type: "small" },
+			{ name: "נווה צוף", lat: 32.005353, lng: 35.125298, population: 1500, type: "small" },
+			{ name: "באר טוביה", lat: 31.733509, lng: 34.722286, population: 1495, type: "small" },
+			{ name: "יקנעם (מושבה)", lat: 32.653663, lng: 35.113465, population: 1487, type: "small" },
+			{ name: "חמ\"ד", lat: 32.017951, lng: 34.837901, population: 1484, type: "small" },
+			{ name: "מצליח", lat: 31.905291, lng: 34.871776, population: 1477, type: "small" },
+			{ name: "עלמון", lat: 31.828778, lng: 35.293171, population: 1474, type: "small" },
+			{ name: "סלעית", lat: 32.241382, lng: 35.049133, population: 1471, type: "small" },
+			{ name: "בית השיטה", lat: 32.550871, lng: 35.438331, population: 1467, type: "small" },
+			{ name: "נופים", lat: 32.15397, lng: 35.100227, population: 1462, type: "small" },
+			{ name: "נווה", lat: 31.161327, lng: 34.332494, population: 1450, type: "small" },
+			{ name: "רומאנה", lat: 32.786907, lng: 35.309332, population: 1446, type: "small" },
+			{ name: "תמרת", lat: 32.702432, lng: 35.223744, population: 1443, type: "small" },
+			{ name: "פורייה עילית", lat: 32.729428, lng: 35.545113, population: 1442, type: "small" },
+			{ name: "כפר סירקין", lat: 32.075856, lng: 34.922729, population: 1439, type: "small" },
+			{ name: "בית חורון", lat: 31.877032, lng: 35.125218, population: 1434, type: "small" },
+			{ name: "אורה", lat: 31.752934, lng: 35.151573, population: 1428, type: "small" },
+			{ name: "נחושה", lat: 31.626325, lng: 34.950865, population: 1421, type: "small" },
+			{ name: "עין ראפה", lat: 31.789916, lng: 35.113594, population: 1417, type: "small" },
+			{ name: "משמר דוד", lat: 31.82176, lng: 34.899147, population: 1414, type: "small" },
+			{ name: "בית חלקיה", lat: 31.791214, lng: 34.810195, population: 1403, type: "small" },
+			{ name: "מגל", lat: 32.384669, lng: 35.031778, population: 1403, type: "small" },
+			{ name: "שורש", lat: 31.796183, lng: 35.0638, population: 1400, type: "small" },
+			{ name: "אחיסמך", lat: 31.934533, lng: 34.906484, population: 1399, type: "small" },
+			{ name: "לכיש", lat: 31.56015, lng: 34.84064, population: 1398, type: "small" },
+			{ name: "זכריה", lat: 31.708749, lng: 34.943562, population: 1392, type: "small" },
+			{ name: "כפר ראש הנקרה", lat: 33.085095, lng: 35.113687, population: 1383, type: "small" },
+			{ name: "עולש", lat: 32.33112, lng: 34.984191, population: 1382, type: "small" },
+			{ name: "באר אורה", lat: 29.709667, lng: 34.985307, population: 1378, type: "small" },
+			{ name: "נווה ימין", lat: 32.170264, lng: 34.938671, population: 1377, type: "small" },
+			{ name: "רמות מנשה", lat: 32.596394, lng: 35.056459, population: 1371, type: "small" },
+			{ name: "משמרות", lat: 32.485589, lng: 34.982847, population: 1364, type: "small" },
+			{ name: "בני ראם", lat: 31.769875, lng: 34.790038, population: 1359, type: "small" },
+			{ name: "גבעות בר", lat: 31.355485, lng: 34.755041, population: 1351, type: "small" },
+			{ name: "עזריה", lat: 31.889355, lng: 34.90811, population: 1351, type: "small" },
+			{ name: "כפר הרא\"ה", lat: 32.389548, lng: 34.910345, population: 1349, type: "small" },
+			{ name: "בני דרור", lat: 32.261124, lng: 34.897611, population: 1346, type: "small" },
+			{ name: "כפר מנחם", lat: 31.728518, lng: 34.831395, population: 1342, type: "small" },
+			{ name: "מעלה עמוס", lat: 31.59822, lng: 35.224556, population: 1340, type: "small" },
+			{ name: "תל עדשים", lat: 32.655282, lng: 35.301407, population: 1335, type: "small" },
+			{ name: "יפעת", lat: 32.675751, lng: 35.223311, population: 1334, type: "small" },
+			{ name: "מבועים", lat: 31.448756, lng: 34.653035, population: 1334, type: "small" },
+			{ name: "ביצרון", lat: 31.794973, lng: 34.728187, population: 1330, type: "small" },
+			{ name: "מעגלים", lat: 31.39568, lng: 34.597147, population: 1322, type: "small" },
+			{ name: "טל שחר", lat: 31.80408, lng: 34.901212, population: 1321, type: "small" },
+			{ name: "שבי ציון", lat: 32.980719, lng: 35.082566, population: 1321, type: "small" },
+			{ name: "רשפון", lat: 32.199474, lng: 34.822846, population: 1320, type: "small" },
+			{ name: "חירות", lat: 32.239212, lng: 34.913176, population: 1319, type: "small" },
+			{ name: "שדה ורבורג", lat: 32.206477, lng: 34.901592, population: 1318, type: "small" },
+			{ name: "טל-אל", lat: 32.924907, lng: 35.176888, population: 1316, type: "small" },
+			{ name: "מכמורת", lat: 32.405224, lng: 34.8719, population: 1314, type: "small" },
+			{ name: "מרחביה (קיבוץ)", lat: 32.605205, lng: 35.305711, population: 1312, type: "small" },
+			{ name: "ברכיה", lat: 31.668203, lng: 34.623925, population: 1307, type: "small" },
+			{ name: "חולדה", lat: 31.830319, lng: 34.881087, population: 1306, type: "small" },
+			{ name: "נהורה", lat: 31.621908, lng: 34.704123, population: 1298, type: "small" },
+			{ name: "חצבה", lat: 30.767351, lng: 35.278437, population: 1297, type: "small" },
+			{ name: "ניצני עוז", lat: 32.304837, lng: 35.002635, population: 1288, type: "small" },
+			{ name: "צרופה", lat: 32.647424, lng: 34.945955, population: 1288, type: "small" },
+			{ name: "גבעת חיים (איחוד)", lat: 32.398341, lng: 34.930682, population: 1283, type: "small" },
+			{ name: "חוסן", lat: 32.996732, lng: 35.29522, population: 1283, type: "small" },
+			{ name: "עין יעקב", lat: 33.008683, lng: 35.228486, population: 1278, type: "small" },
+			{ name: "נס הרים", lat: 31.743885, lng: 35.055911, population: 1273, type: "small" },
+			{ name: "גבעת יערים", lat: 31.785794, lng: 35.090475, population: 1271, type: "small" },
+			{ name: "אביחיל", lat: 32.349769, lng: 34.869713, population: 1270, type: "small" },
+			{ name: "גבעת חיים (מאוחד)", lat: 32.390375, lng: 34.929292, population: 1265, type: "small" },
+			{ name: "גבעתי", lat: 31.731913, lng: 34.679084, population: 1261, type: "small" },
+			{ name: "עין איילה", lat: 32.628098, lng: 34.944711, population: 1260, type: "small" },
+			{ name: "עצמון שגב", lat: 32.864696, lng: 35.250286, population: 1260, type: "small" },
+			{ name: "רחלים", lat: 32.101338, lng: 35.255506, population: 1260, type: "small" },
+			{ name: "אום אל-קוטוף", lat: 32.468129, lng: 35.054904, population: 1259, type: "small" },
+			{ name: "טירת יהודה", lat: 32.012661, lng: 34.932311, population: 1256, type: "small" },
+			{ name: "ינון", lat: 31.741497, lng: 34.780023, population: 1255, type: "small" },
+			{ name: "נתיב העשרה", lat: 31.57107, lng: 34.538141, population: 1254, type: "small" },
+			{ name: "ניר גלים", lat: 31.823077, lng: 34.680596, population: 1251, type: "small" },
+			{ name: "יד רמב\"ם", lat: 31.899056, lng: 34.899199, population: 1246, type: "small" },
+			{ name: "רמת הכובש", lat: 32.216241, lng: 34.93649, population: 1246, type: "small" },
+			{ name: "בני יהודה", lat: 32.797172, lng: 35.687918, population: 1244, type: "small" },
+			{ name: "משמר העמק", lat: 32.609171, lng: 35.140912, population: 1244, type: "small" },
+			{ name: "אילון", lat: 33.062226, lng: 35.215362, population: 1243, type: "small" },
+			{ name: "ערוגות", lat: 31.733098, lng: 34.770986, population: 1242, type: "small" },
+			{ name: "רינתיה", lat: 32.043401, lng: 34.926841, population: 1235, type: "small" },
+			{ name: "הגושרים", lat: 33.219666, lng: 35.622165, population: 1232, type: "small" },
+			{ name: "אלישמע", lat: 32.151572, lng: 34.927012, population: 1229, type: "small" },
+			{ name: "בית רימון", lat: 32.780967, lng: 35.326649, population: 1229, type: "small" },
+			{ name: "ענב", lat: 32.283178, lng: 35.124453, population: 1228, type: "small" },
+			{ name: "גן שמואל", lat: 32.451114, lng: 34.94908, population: 1226, type: "small" },
+			{ name: "כפר יחזקאל", lat: 32.56608, lng: 35.358218, population: 1224, type: "small" },
+			{ name: "כפר יהושע", lat: 32.681584, lng: 35.150915, population: 1220, type: "small" },
+			{ name: "בית אלפא", lat: 32.515835, lng: 35.430003, population: 1216, type: "small" },
+			{ name: "מגדים", lat: 32.728692, lng: 34.957605, population: 1215, type: "small" },
+			{ name: "רשפים", lat: 32.479045, lng: 35.475092, population: 1213, type: "small" },
+			{ name: "מולדת", lat: 32.585288, lng: 35.438995, population: 1211, type: "small" },
+			{ name: "כפר ביל\"ו", lat: 31.871717, lng: 34.824151, population: 1210, type: "small" },
+			{ name: "נווה ירק", lat: 32.131958, lng: 34.922864, population: 1210, type: "small" },
+			{ name: "כפר עציון", lat: 31.648397, lng: 35.114227, population: 1209, type: "small" },
+			{ name: "שדה נחום", lat: 32.52671, lng: 35.47994, population: 1204, type: "small" },
+			{ name: "הזורעים", lat: 32.744942, lng: 35.500946, population: 1202, type: "small" },
+			{ name: "גילון", lat: 32.901913, lng: 35.235555, population: 1201, type: "small" },
+			{ name: "מנחמיה", lat: 32.664996, lng: 35.553525, population: 1200, type: "small" },
+			{ name: "כפר ורבורג", lat: 31.718072, lng: 34.725194, population: 1199, type: "small" },
+			{ name: "דביר", lat: 31.412429, lng: 34.821378, population: 1197, type: "small" },
+			{ name: "מצובה", lat: 33.061748, lng: 35.155322, population: 1196, type: "small" },
+			{ name: "נוב", lat: 32.831718, lng: 35.781171, population: 1192, type: "small" },
+			{ name: "זיתן", lat: 31.974639, lng: 34.888983, population: 1191, type: "small" },
+			{ name: "ריחאנייה", lat: 33.048357, lng: 35.48592, population: 1188, type: "small" },
+			{ name: "ירחיב", lat: 32.152131, lng: 34.966995, population: 1182, type: "small" },
+			{ name: "בארותיים", lat: 32.320692, lng: 34.981838, population: 1180, type: "small" },
+			{ name: "יובלים", lat: 32.877555, lng: 35.268704, population: 1180, type: "small" },
+			{ name: "גבע כרמל", lat: 32.661515, lng: 34.953291, population: 1179, type: "small" },
+			{ name: "יסודות", lat: 31.814221, lng: 34.86377, population: 1179, type: "small" },
+			{ name: "צופית", lat: 32.191802, lng: 34.919594, population: 1178, type: "small" },
+			{ name: "נבטים", lat: 31.222082, lng: 34.880144, population: 1174, type: "small" },
+			{ name: "בר יוחאי", lat: 32.996267, lng: 35.447566, population: 1173, type: "small" },
+			{ name: "גבעון החדשה", lat: 31.846945, lng: 35.156781, population: 1171, type: "small" },
+			{ name: "אודים", lat: 32.264307, lng: 34.845882, population: 1167, type: "small" },
+			{ name: "בית עזרא", lat: 31.736308, lng: 34.653955, population: 1167, type: "small" },
+			{ name: "עין דור", lat: 32.656324, lng: 35.414749, population: 1165, type: "small" },
+			{ name: "רמת יוחנן", lat: 32.792432, lng: 35.120669, population: 1162, type: "small" },
+			{ name: "שדות ים", lat: 32.490435, lng: 34.891323, population: 1161, type: "small" },
+			{ name: "ראש צורים", lat: 31.666874, lng: 35.123647, population: 1157, type: "small" },
+			{ name: "מבוא ביתר", lat: 31.721396, lng: 35.105093, population: 1153, type: "small" },
+			{ name: "בני נצרים", lat: 31.139938, lng: 34.313302, population: 1152, type: "small" },
+			{ name: "חדיד", lat: 31.967855, lng: 34.930359, population: 1152, type: "small" },
+			{ name: "אחיהוד", lat: 32.906728, lng: 35.171613, population: 1150, type: "small" },
+			{ name: "בני ציון", lat: 32.217905, lng: 34.866951, population: 1150, type: "small" },
+			{ name: "גמזו", lat: 31.926787, lng: 34.93948, population: 1150, type: "small" },
+			{ name: "משמר הנגב", lat: 31.362429, lng: 34.715551, population: 1149, type: "small" },
+			{ name: "שדה נחמיה", lat: 33.186333, lng: 35.622157, population: 1147, type: "small" },
+			{ name: "בית הגדי", lat: 31.424244, lng: 34.604998, population: 1146, type: "small" },
+			{ name: "פארן", lat: 30.362112, lng: 35.153181, population: 1146, type: "small" },
+			{ name: "שקד", lat: 32.472261, lng: 35.16723, population: 1146, type: "small" },
+			{ name: "חגור", lat: 32.136236, lng: 34.945606, population: 1145, type: "small" },
+			{ name: "ישרש", lat: 31.914132, lng: 34.846623, population: 1145, type: "small" },
+			{ name: "אפיקים", lat: 32.680043, lng: 35.57655, population: 1140, type: "small" },
+			{ name: "יגל", lat: 31.98747, lng: 34.877659, population: 1139, type: "small" },
+			{ name: "בית עריף", lat: 31.994861, lng: 34.932977, population: 1138, type: "small" },
+			{ name: "אירוס", lat: 31.927998, lng: 34.775256, population: 1135, type: "small" },
+			{ name: "בורגתה", lat: 32.323999, lng: 34.961131, population: 1129, type: "small" },
+			{ name: "רמת השופט", lat: 32.60966, lng: 35.092628, population: 1129, type: "small" },
+			{ name: "שובה", lat: 31.450623, lng: 34.542677, population: 1129, type: "small" },
+			{ name: "טירת צבי", lat: 32.419678, lng: 35.527157, population: 1126, type: "small" },
+			{ name: "בארי", lat: 31.422767, lng: 34.489404, population: 1125, type: "small" },
+			{ name: "סתרייה", lat: 31.889124, lng: 34.843126, population: 1125, type: "small" },
+			{ name: "גבת", lat: 32.673732, lng: 35.210997, population: 1124, type: "small" },
+			{ name: "תראבין א-צאנע (יישוב)", lat: 31.343088, lng: 34.738601, population: 1124, type: "small" },
+			{ name: "היוגב", lat: 32.610774, lng: 35.203332, population: 1121, type: "small" },
+			{ name: "קבוצת יבנה", lat: 31.814352, lng: 34.718138, population: 1120, type: "small" },
+			{ name: "מתתיהו", lat: 31.92865, lng: 35.031642, population: 1119, type: "small" },
+			{ name: "ניר צבי", lat: 31.9514, lng: 34.861509, population: 1116, type: "small" },
+			{ name: "פטיש", lat: 31.326309, lng: 34.558583, population: 1116, type: "small" },
+			{ name: "מזור", lat: 32.050465, lng: 34.924004, population: 1115, type: "small" },
+			{ name: "נצר סרני", lat: 31.922096, lng: 34.822114, population: 1115, type: "small" },
+			{ name: "צלפון", lat: 31.803666, lng: 34.929367, population: 1115, type: "small" },
+			{ name: "כוכב מיכאל", lat: 31.628414, lng: 34.667398, population: 1114, type: "small" },
+			{ name: "אשתאול", lat: 31.780056, lng: 35.007679, population: 1112, type: "small" },
+			{ name: "בני דרום", lat: 31.819346, lng: 34.690081, population: 1109, type: "small" },
+			{ name: "בית הלל", lat: 33.207382, lng: 35.604281, population: 1107, type: "small" },
+			{ name: "בית יהושע", lat: 32.259046, lng: 34.864114, population: 1107, type: "small" },
+			{ name: "איילת השחר", lat: 33.022626, lng: 35.574696, population: 1105, type: "small" },
+			{ name: "סעד", lat: 31.469602, lng: 34.532989, population: 1100, type: "small" },
+			{ name: "אדרת", lat: 31.659365, lng: 34.993425, population: 1094, type: "small" },
+			{ name: "גאליה", lat: 31.883977, lng: 34.764014, population: 1094, type: "small" },
+			{ name: "מעונה", lat: 33.015246, lng: 35.259418, population: 1091, type: "small" },
+			{ name: "טנא", lat: 31.373563, lng: 34.955183, population: 1089, type: "small" },
+			{ name: "מצפה אבי\"ב", lat: 32.835733, lng: 35.198843, population: 1088, type: "small" },
+			{ name: "יציץ", lat: 31.862032, lng: 34.858913, population: 1086, type: "small" },
+			{ name: "בוסתן הגליל", lat: 32.950276, lng: 35.080651, population: 1085, type: "small" },
+			{ name: "ברור חיל", lat: 31.556793, lng: 34.64527, population: 1084, type: "small" },
+			{ name: "שדה יעקב", lat: 32.697169, lng: 35.13989, population: 1082, type: "small" },
+			{ name: "צפרייה", lat: 32.001893, lng: 34.855024, population: 1081, type: "small" },
+			{ name: "אבני איתן", lat: 32.822167, lng: 35.763713, population: 1079, type: "small" },
+			{ name: "שבי שומרון", lat: 32.26256, lng: 35.183681, population: 1077, type: "small" },
+			{ name: "אמונים", lat: 31.74258, lng: 34.674264, population: 1076, type: "small" },
+			{ name: "שפיר", lat: 31.696091, lng: 34.726889, population: 1074, type: "small" },
+			{ name: "בית נחמיה", lat: 31.975568, lng: 34.953527, population: 1073, type: "small" },
+			{ name: "חבר", lat: 32.546746, lng: 35.262655, population: 1073, type: "small" },
+			{ name: "גני טל", lat: 31.787391, lng: 34.790594, population: 1070, type: "small" },
+			{ name: "מבטחים", lat: 31.239315, lng: 34.406419, population: 1070, type: "small" },
+			{ name: "משמר השבעה", lat: 32.008562, lng: 34.822063, population: 1070, type: "small" },
+			{ name: "כברי", lat: 33.02034, lng: 35.147532, population: 1067, type: "small" },
+			{ name: "בחן", lat: 32.351023, lng: 35.018573, population: 1062, type: "small" },
+			{ name: "שמעה", lat: 31.386656, lng: 35.011311, population: 1060, type: "small" },
+			{ name: "אלון הגליל", lat: 32.755796, lng: 35.217843, population: 1058, type: "small" },
+			{ name: "רגבה", lat: 32.976721, lng: 35.098126, population: 1057, type: "small" },
+			{ name: "גינתון", lat: 31.961782, lng: 34.912489, population: 1055, type: "small" },
+			{ name: "תל יצחק", lat: 32.251955, lng: 34.866591, population: 1055, type: "small" },
+			{ name: "נווה אילן", lat: 31.807211, lng: 35.079466, population: 1052, type: "small" },
+			{ name: "שובל", lat: 31.413413, lng: 34.742387, population: 1052, type: "small" },
+			{ name: "אור הנר", lat: 31.55603, lng: 34.598428, population: 1048, type: "small" },
+			{ name: "בית קמה", lat: 31.447457, lng: 34.75962, population: 1044, type: "small" },
+			{ name: "עזריאל", lat: 32.26135, lng: 34.969109, population: 1044, type: "small" },
+			{ name: "מזרע", lat: 32.649865, lng: 35.284913, population: 1042, type: "small" },
+			{ name: "שדי חמד", lat: 32.158439, lng: 34.941716, population: 1042, type: "small" },
+			{ name: "דפנה", lat: 33.228902, lng: 35.637024, population: 1038, type: "small" },
+			{ name: "הזורע", lat: 32.642945, lng: 35.117963, population: 1031, type: "small" },
+			{ name: "משמרת", lat: 32.227042, lng: 34.918699, population: 1029, type: "small" },
+			{ name: "בן זכאי", lat: 31.855465, lng: 34.727348, population: 1025, type: "small" },
+			{ name: "גבעת כ\"ח", lat: 32.03035, lng: 34.934302, population: 1023, type: "small" },
+			{ name: "דלתון", lat: 33.015821, lng: 35.487604, population: 1019, type: "small" },
+			{ name: "נירית", lat: 32.145785, lng: 34.983536, population: 1017, type: "small" },
+			{ name: "יד מרדכי", lat: 31.587887, lng: 34.556964, population: 1014, type: "small" },
+			{ name: "עתניאל", lat: 31.438259, lng: 35.027752, population: 1014, type: "small" },
+			{ name: "עשרת", lat: 31.823563, lng: 34.745795, population: 1009, type: "small" },
+			{ name: "חנתון", lat: 32.78277, lng: 35.243476, population: 1008, type: "small" },
+			{ name: "שריד", lat: 32.662216, lng: 35.223724, population: 1007, type: "small" },
+			{ name: "מעלה לבונה", lat: 32.053827, lng: 35.238622, population: 1006, type: "small" },
+			{ name: "שדה אליעזר", lat: 33.04433, lng: 35.561972, population: 1005, type: "small" },
+			{ name: "להבות חביבה", lat: 32.393922, lng: 35.007783, population: 1004, type: "small" },
+			{ name: "ציפורי", lat: 32.744379, lng: 35.277027, population: 1001, type: "small" },
+        ];
+        
+        // Initialize UI
+        function initUI() {
+            const rangeControls = document.getElementById('rangeControls');
+            rangeControls.innerHTML = '';
+            
+            appState.ranges.forEach((range, index) => {
+                const rangeItem = document.createElement('div');
+                rangeItem.className = 'range-item';
+                rangeItem.innerHTML = `
+                    <div class="range-header">
+                        <div class="range-name">
+                            <span class="range-indicator" style="background-color: ${range.color}"></span>
+                            ${range.name}
+                        </div>
+                        <input type="color" class="color-picker" value="${range.color}" 
+                               data-index="${index}" title="Change color">
+                    </div>
+                    <div class="range-slider-container">
+                        <input type="range" class="range-slider" min="${range.min}" max="${range.max}" 
+                               value="${range.radius}" data-index="${index}" style="color: ${range.color}">
+                        <div class="range-value">${range.radius} km</div>
+                    </div>
+                `;
+                rangeControls.appendChild(rangeItem);
+            });
+            
+            // Add event listeners
+            document.querySelectorAll('.range-slider').forEach(slider => {
+                slider.addEventListener('input', function() {
+                    const index = parseInt(this.dataset.index);
+                    const value = parseInt(this.value);
+                    appState.ranges[index].radius = value;
+                    this.nextElementSibling.textContent = `${value} km`;
+                    updateStats();
+                });
+            });
+            
+            document.querySelectorAll('.color-picker').forEach(picker => {
+                picker.addEventListener('input', function() {
+                    const index = parseInt(this.dataset.index);
+                    appState.ranges[index].color = this.value;
+                    this.style.color = this.value;
+                    this.previousElementSibling.querySelector('.range-indicator').style.backgroundColor = this.value;
+                    updateStats();
+                });
+            });
+            
+            document.getElementById('updateCircles').addEventListener('click', drawCircles);
+            document.getElementById('resetAll').addEventListener('click', resetToDefault);
+            
+            updateStats();
+            
+            // Population slider and input
+            const populationSlider = document.getElementById('populationSlider');
+            const populationInput = document.getElementById('populationInput');
+            
+            // Sync slider to input
+            populationSlider.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                populationInput.value = value;
+            });
+            
+            // Sync input to slider with validation
+            populationInput.addEventListener('input', function() {
+                let value = parseInt(this.value) || 0;
+                if (value < 0) value = 0;
+                if (value > 100000) value = 100000;
+                this.value = value;
+                populationSlider.value = value;
+            });
+            
+            updateCityCountDisplay();
+        }
+        
+        // Convert km to meters for Leaflet
+        function kmToMeters(km) {
+            return km * 1000;
+        }
+        
+        // Calculate distance between two points in km
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Determine which ring a city is in (returns ring color or black if outside all rings)
+        function getCityRingColor(cityLat, cityLng) {
+            const distance = calculateDistance(cityLat, cityLng, appState.center[0], appState.center[1]);
+            
+            // Check rings from innermost to outermost
+            const sortedRanges = [...appState.ranges].sort((a, b) => a.radius - b.radius);
+            
+            for (const range of sortedRanges) {
+                if (distance <= range.radius) {
+                    return range.color;
+                }
+            }
+            
+            return "#000000"; // Black for outside all rings
+        }
+		
+		// Function to get ring name by distance
+		function getRingNameByDistance(distance) {
+			const sortedRanges = [...appState.ranges].sort((a, b) => a.radius - b.radius);
+			for (const range of sortedRanges) {
+				if (distance <= range.radius) {
+					return range.name;
+				}
+			}
+			return null; // Outside all rings
+		}
+        
+        // Add city markers and text labels
+        function addCityMarkers() {
+            // Clear existing markers and labels
+            appState.cityMarkers.forEach(marker => map.removeLayer(marker));
+            appState.cityLabels.forEach(label => map.removeLayer(label));
+            appState.cityMarkers = [];
+            appState.cityLabels = [];
+            
+            israelCities.forEach(city => {
+                // Skip cities below population threshold
+                if (city.population < appState.minPopulation) {
+                    return;
+                }
+                // Determine which ring the city is in
+                const ringColor = getCityRingColor(city.lat, city.lng);
+                
+                // Create custom icon based on city size
+                const iconSize = city.type === 'major' ? [12, 12] : 
+                                city.type === 'medium' ? [8, 8] : [6, 6];
+                
+				// Create the city circle with proper radius based on population
+				const baseRadius = city.type === 'major' ? 1500 : 
+								   city.type === 'medium' ? 800 : 400;
+
+				// Use L.circle instead of L.circleMarker for size-dependent circles
+				const marker = L.circle([city.lat, city.lng], {
+					radius: baseRadius, // Meters - scales with zoom
+					fillColor: ringColor,
+					color: '#fff',
+					weight: city.type === 'major' ? 3 : 2,
+					opacity: 0.9,
+					fillOpacity: 0.8
+				}).addTo(map);
+
+				// Attach tooltip directly to the circle (not a separate marker)
+				const distance = calculateDistance(city.lat, city.lng, appState.center[0], appState.center[1]);
+				const ringName = getRingNameByDistance(distance);
+
+				marker.bindTooltip(`
+					<div style="text-align: center; min-width: 180px;">
+						<div style="font-weight: 600; color: ${ringColor}; margin-bottom: 5px;">
+							${city.name}
+						</div>
+						<div style="font-size: 0.85rem; color: #4a5568;">
+							<div>Population: ${city.population.toLocaleString()}</div>
+							<div>Distance from center: ${distance.toFixed(1)} km</div>
+							<div style="margin-top: 5px; font-weight: 500; color: ${ringColor === "#000000" ? "#666" : ringColor}">
+								${ringName ? "Inside " + ringName : "Outside all rings"}
+							</div>
+						</div>
+					</div>
+				`, {
+					permanent: false,
+					direction: 'auto',
+					className: 'city-label',
+					sticky: true
+				});
+
+				// Add text label (permanent, not tooltip)
+				const fontSize = city.type === 'major' ? '24px' : city.type === 'medium' ? '20px' : '16px';
+				const padding = city.type === 'major' ? '0px 0px' : city.type === 'medium' ? '0px 0px' : '0px 0px';
+				const label = L.marker([city.lat, city.lng], {
+					icon: L.divIcon({
+						html: `<div style="color: ${ringColor}; font-weight: 600; padding: ${padding}; background: white; border: 1px solid #ccc; border-radius: 3px; font-size: ${fontSize}; display: inline-block; white-space: nowrap;">${city.name}</div>`,
+						iconSize: null,
+						iconAnchor: [0, 0],
+						className: ''
+					})
+				}).addTo(map);
+
+				appState.cityMarkers.push(marker);
+				appState.cityLabels.push(label);
+            });
+            
+            updateCityCountDisplay();
+        }
+        
+        function updateCityCountDisplay() {
+            const visibleCount = appState.cityMarkers.length;
+            const totalCount = israelCities.length;
+            
+            document.getElementById('visibleCitiesCount').textContent = visibleCount;
+            document.getElementById('totalCitiesCount').textContent = totalCount;
+        }
+		
+        // Update city colors based on current circles
+        function updateCityColors() {
+            // Create a filtered list of cities to match the markers
+            const filteredCities = israelCities.filter(city => city.population >= appState.minPopulation);
+            
+            appState.cityMarkers.forEach((marker, index) => {
+                const city = filteredCities[index];
+                if (!city) return;
+                
+                const ringColor = getCityRingColor(city.lat, city.lng);
+                
+                // Update marker color
+                marker.setStyle({
+                    fillColor: ringColor
+                });
+                
+                // Update label color
+                if (appState.cityLabels[index]) {
+                    const labelElement = appState.cityLabels[index].getElement();
+                    if (labelElement) {
+                        labelElement.querySelector('div').style.color = ringColor;
+                    }
+                }
+                
+				// Update tooltip
+				const distance = calculateDistance(city.lat, city.lng, appState.center[0], appState.center[1]);
+				const ringName = getRingNameByDistance(distance);
+
+				marker.setTooltipContent(`
+					<div style="text-align: center; min-width: 180px;">
+						<div style="font-weight: 600; color: ${ringColor}; margin-bottom: 5px;">
+							${city.name}
+						</div>
+						<div style="font-size: 0.85rem; color: #4a5568;">
+							<div>Population: ${city.population.toLocaleString()}</div>
+							<div>Distance from center: ${distance.toFixed(1)} km</div>
+							<div style="margin-top: 5px; font-weight: 500; color: ${ringColor === "#000000" ? "#666" : ringColor}">
+								${ringName ? "Inside " + ringName : "Outside all rings"}
+							</div>
+						</div>
+					</div>
+				`);
+            });
+        }
+        
+        // Draw all concentric circles
+		function drawCircles() {
+			// Update population filter value before drawing
+			appState.minPopulation = parseInt(populationInput.value) || 0;
+			
+			// Clear existing circles
+			appState.circles.forEach(circle => map.removeLayer(circle));
+			appState.circles = [];
+			
+			// Remove existing center marker
+			if (appState.centerMarker) {
+				map.removeLayer(appState.centerMarker);
+			}
+			
+			// Create new center marker (draggable)
+			appState.centerMarker = L.marker(appState.center, {
+				draggable: true,
+				icon: L.divIcon({
+					className: 'location-marker' + (appState.isCursorUpdateActive ? ' cursor-update-active' : ''),
+					html: `<div style="background-color: ${appState.isCursorUpdateActive ? '#e74c3c' : '#2c3e50'}; width: 24px; height: 24px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4); cursor: move;"></div>`,
+					iconSize: [24, 24],
+					iconAnchor: [12, 12]
+				})
+			}).addTo(map);
+			
+			// Update center when marker is dragged
+			appState.centerMarker.on('dragend', function(e) {
+				appState.center = [e.target.getLatLng().lat, e.target.getLatLng().lng];
+				drawCircles();
+				updateCityColors();
+			});
+			
+			// Sort from smallest to largest, then reverse to draw largest first
+			const sortedRanges = [...appState.ranges].sort((a, b) => a.radius - b.radius);
+			const rangesToDraw = [...sortedRanges].reverse(); // Draw largest first
+
+			rangesToDraw.forEach((range, reverseIndex) => {
+				const originalIndex = sortedRanges.findIndex(r => r.id === range.id);
+				// Inner circles get higher opacity
+				const fillOpacity = 0.2 + (originalIndex * 0.04);
+				
+				const circle = L.circle(appState.center, {
+					radius: kmToMeters(range.radius),
+					color: range.color,
+					fillColor: range.color,
+					fillOpacity: fillOpacity,
+					weight: 3,
+					opacity: 0.8,
+					className: `circle-fill-${originalIndex}`
+				}).addTo(map);
+				
+				// Add label showing the radius
+				const label = L.tooltip({
+					permanent: true,
+					direction: 'center',
+					className: 'circle-label',
+					opacity: 0.9
+				})
+				.setLatLng([appState.center[0] + (range.radius / 2000), appState.center[1] + (range.radius / 2000)])
+				.setContent(`<div style="color: ${range.color}; font-weight: 600;">${range.radius} km</div>`);
+				
+				circle.bindTooltip(label);
+				appState.circles.push(circle);
+				
+				// Add area calculation to tooltip
+				const area = Math.PI * range.radius * range.radius;
+				circle.on('click', function(e) {
+					const clicked = e.latlng;
+					const centerLatLng = L.latLng(appState.center);
+
+					const distanceKm = map.distance(clicked, centerLatLng) / 1000;
+
+					circle.bindPopup(`
+						<div style="text-align: center; min-width: 220px;">
+							<h4 style="margin: 0 0 10px 0; color: ${range.color};">${range.name}</h4>
+							<p><strong>Radius:</strong> ${range.radius} km</p>
+							<p><strong>Area:</strong> ${area.toFixed(0)} km²</p>
+
+							<p><strong>Selected:</strong><br>
+							${clicked.lat.toFixed(5)}°, ${clicked.lng.toFixed(5)}°</p>
+
+							<p><strong>Distance from centre:</strong><br>
+							${distanceKm.toFixed(2)} km</p>
+
+							<p><strong>Center:</strong><br>
+							${appState.center[0].toFixed(5)}°, ${appState.center[1].toFixed(5)}°</p>
+						</div>
+					`).openPopup(clicked);
+				});
+			});
+			
+			updateStats();
+			addCityMarkers(); // This will now use the updated population filter
+			updateCityColors();
+		}
+        
+        // Update statistics panel
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = '';
+            
+            appState.ranges.forEach(range => {
+                const area = Math.PI * range.radius * range.radius;
+                const statItem = document.createElement('div');
+                statItem.className = 'stat-item';
+                statItem.innerHTML = `
+                    <div class="stat-label">
+                        <span class="range-indicator" style="background-color: ${range.color}"></span>
+                        ${range.name}
+                    </div>
+                    <div class="stat-value">${range.radius} km</div>
+                `;
+                statsGrid.appendChild(statItem);
+            });
+            
+            // Add total area
+            const totalArea = appState.ranges.reduce((sum, range) => 
+                sum + Math.PI * range.radius * range.radius, 0);
+            
+            const totalItem = document.createElement('div');
+            totalItem.className = 'stat-item';
+            totalItem.style.borderTop = '2px solid #3498db';
+            totalItem.style.paddingTop = '12px';
+            totalItem.innerHTML = `
+                <div class="stat-label"><strong>Max Coverage Area:</strong></div>
+                <div class="stat-value">${totalArea.toFixed(0)} km²</div>
+            `;
+            statsGrid.appendChild(totalItem);
+        }
+        
+        // Reset to default values
+		function resetToDefault() {
+			appState.minPopulation = 0;
+			const populationSlider = document.getElementById('populationSlider');
+			const populationInput = document.getElementById('populationInput');
+			populationSlider.value = 0;
+			populationInput.value = 0;
+			
+			appState.center = [31.5, 34.75];
+			appState.ranges = [
+				{ id: 0, name: "Inner Ring", radius: 15, color: "#FFD700", min: 5, max: 50 },
+				{ id: 1, name: "Middle Ring", radius: 40, color: "#00FF00", min: 20, max: 100 },
+				{ id: 2, name: "Outer Ring", radius: 75, color: "#20B2AA", min: 50, max: 150 },
+				{ id: 3, name: "Extended Ring", radius: 120, color: "#0000FF", min: 80, max: 200 },
+				{ id: 4, name: "Maximum Ring", radius: 225, color: "#800080", min: 150, max: 300 }
+			];
+			
+			initUI();
+			drawCircles();
+			addCityMarkers();
+		}
+        
+        // Update circles to cursor position
+        function updateCirclesToCursor() {
+            const now = Date.now();
+            
+            // Apply rate limiting
+            if (now - appState.lastCursorUpdate < appState.CURSOR_UPDATE_INTERVAL) {
+                return;
+            }
+            
+            appState.lastCursorUpdate = now;
+            
+            if (appState.currentMousePosition) {
+                appState.center = [appState.currentMousePosition.lat, appState.currentMousePosition.lng];
+                drawCircles();
+                updateCityColors();
+            }
+        }
+        
+        // Start cursor update mode
+        function startCursorUpdate() {
+            if (!appState.isCursorUpdateActive) {
+                appState.isCursorUpdateActive = true;
+                
+                // Update info box
+                const infoBox = document.querySelector('.info-box');
+                infoBox.classList.add('cursor-info');
+                
+                // Draw circles immediately
+                drawCircles();
+                
+                // Set up update loop
+                appState.cursorUpdateInterval = setInterval(updateCirclesToCursor, appState.CURSOR_UPDATE_INTERVAL);
+            }
+        }
+        
+        // Stop cursor update mode
+        function stopCursorUpdate() {
+            if (appState.isCursorUpdateActive) {
+                appState.isCursorUpdateActive = false;
+                
+                // Clear interval
+                if (appState.cursorUpdateInterval) {
+                    clearInterval(appState.cursorUpdateInterval);
+                    appState.cursorUpdateInterval = null;
+                }
+                
+                // Update info box
+                const infoBox = document.querySelector('.info-box');
+                infoBox.classList.remove('cursor-info');
+                
+                // Redraw with normal marker
+                drawCircles();
+            }
+        }
+        
+        // Initialize everything
+        function init() {
+            initUI();
+            drawCircles();
+            addCityMarkers();
+            
+            // Track mouse position
+            map.on('mousemove', function(e) {
+                appState.currentMousePosition = e.latlng;
+            });
+			
+			// --- REFINED LONG PRESS (1 SECOND) ---
+			const mapContainer = document.getElementById('map');
+
+			function startPress(e) {
+				// STOP if it's a multi-touch (pinch zoom) or right-click
+				if ((e.touches && e.touches.length > 1) || e.button === 2) {
+					cancelPress();
+					return;
+				}
+
+				const event = e.touches ? e.touches[0] : e;
+				const latlng = map.mouseEventToLatLng(event);
+
+				appState.longPressTimer = setTimeout(function() {
+					appState.center = [latlng.lat, latlng.lng];
+					drawCircles();
+					updateCityColors();
+				}, 1000);
+			}
+
+			function cancelPress() {
+				clearTimeout(appState.longPressTimer);
+			}
+
+			// Desktop
+			mapContainer.addEventListener('mousedown', startPress);
+			mapContainer.addEventListener('mouseup', cancelPress);
+			mapContainer.addEventListener('mousemove', (e) => {
+				// Cancel if mouse moves significantly during the hold
+				if (e.buttons > 0) cancelPress(); 
+			});
+
+			// Mobile
+			mapContainer.addEventListener('touchstart', startPress, {passive: true});
+			mapContainer.addEventListener('touchend', cancelPress);
+			mapContainer.addEventListener('touchmove', cancelPress); // Critical for pinch-zoom
+
+			// Leaflet-level safeguards
+			map.on('zoomstart movestart dragstart', cancelPress);
+            
+            // Add initial tooltip
+            L.popup()
+                .setLatLng([appState.center[0] + 0.5, appState.center[1] + 0.5])
+                .setContent(`
+                    <div style="text-align: center; padding: 15px; max-width: 300px;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c3e50;">Radius Range Visualizer</h3>
+                        <p>Drag the center marker to move all circles.<br>
+                        Adjust sliders to change radii.<br>
+                        Click color pickers to customize.</p>
+                        <p><strong>Hold C key</strong> to make circles follow cursor</p>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                            City names are colored by innermost ring they're in (black = outside all rings).
+                        </p>
+                    </div>
+                `)
+                .openOn(map);
+        }
+        
+        // Start the application
+        init();
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if typing in an input
+            if (e.target.matches('input, textarea')) return;
+            
+            // Spacebar to recenter
+            if (e.code === 'Space') {
+                e.preventDefault();
+                map.setView(appState.center, 8);
+            }
+            // R to reset
+            else if (e.code === 'KeyR') {
+                e.preventDefault();
+                resetToDefault();
+            }
+            // U to update
+            else if (e.code === 'KeyU') {
+                e.preventDefault();
+                drawCircles();
+            }
+            // C key for cursor update
+            else if (e.code === 'KeyC') {
+                e.preventDefault();
+                startCursorUpdate();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyC') {
+                stopCursorUpdate();
+            }
+        });
+        
+        // Stop cursor update if window loses focus
+        window.addEventListener('blur', stopCursorUpdate);
+    </script>
+</body>
+</html>
